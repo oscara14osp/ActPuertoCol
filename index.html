@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trilogía de Juegos Bíblicos</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f3f5;
+            --highlight: #f1c40f;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        /* Navegación Principal */
+        nav { background: var(--primary); width: 100%; padding: 15px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+        nav button { background: transparent; color: white; border: 2px solid white; padding: 10px 18px; margin: 5px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        nav button.active { background: white; color: var(--primary); }
+
+        .game-section { display: none; width: 95%; max-width: 600px; margin: 20px auto; text-align: center; animation: fadeIn 0.5s; }
+        .game-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary); margin-top: 0; }
+
+        /* JUEGO 1: REORGANIZAR */
+        .word-display { font-size: 2.2rem; font-weight: 800; color: var(--accent); letter-spacing: 5px; margin: 20px; text-transform: uppercase; }
+        .input-reorder { padding: 12px; border: 2px solid #ddd; border-radius: 8px; width: 80%; margin-bottom: 10px; font-size: 1.1rem; text-align: center; }
+
+        /* JUEGO 2: SOPA DE LETRAS */
+        .soup-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; background: #bdc3c7; border: 4px solid var(--primary); padding: 5px; margin: 0 auto 20px; max-width: 400px; user-select: none; }
+        .cell { background: white; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; }
+        .cell.found { background-color: var(--highlight); color: black; font-weight: 900; }
+        .word-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+        .word-item { background: #f8f9fa; padding: 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; border: 1px solid #ddd; font-size: 0.9rem; }
+        .word-item.completed { background: #d4edda; border-color: var(--success); color: #155724; cursor: default; }
+        .check-mark { display: none; color: var(--success); font-weight: bold; }
+        .word-item.completed .check-mark { display: inline; }
+
+        /* JUEGO 3: AHORCADO */
+        #hangman-svg { width: 140px; height: 140px; margin: 10px auto; }
+        .hangman-part { stroke: var(--primary); stroke-width: 4; fill: none; display: none; }
+        #hangman-word { font-size: 1.8rem; letter-spacing: 8px; margin: 20px; font-weight: bold; color: var(--primary); }
+        .keyboard { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 15px; }
+        .key { padding: 8px; width: 35px; background: #eee; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .key:disabled { opacity: 0.4; cursor: not-allowed; }
+        .key.hit { background: var(--success); color: white; }
+        .key.miss { background: var(--error); color: white; }
+
+        /* Botones generales */
+        .btn-action { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-next { background: var(--success); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <button id="nav1" class="active" onclick="switchGame(1)">1. Ordenar</button>
+    <button id="nav2" onclick="switchGame(2)">2. Sopa</button>
+    <button id="nav3" onclick="switchGame(3)">3. Ahorcado</button>
+</nav>
+
+<div id="game1" class="game-section active">
+    <div class="card">
+        <h1>Samgar: El Valiente</h1>
+        <p>Ordena las letras de la palabra secreta</p>
+        <div id="scrambled-word" class="word-display">Cargando...</div>
+        <input type="text" id="reorder-input" class="input-reorder" placeholder="Tu respuesta..." autocomplete="off">
+        <br>
+        <button class="btn-action" onclick="checkReorder()">Comprobar</button>
+        <div id="reorder-msg" style="margin-top:15px; font-weight:bold;"></div>
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content: center;">
+            <button onclick="revealReorder()" style="background:#95a5a6; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">Revelar</button>
+            <button class="btn-next" onclick="nextReorder()">Siguiente</button>
+        </div>
+    </div>
+</div>
+
+<div id="game2" class="game-section">
+    <div class="card">
+        <h1>Sopa: Saulo de Tarso</h1>
+        <p>Toca una palabra de la lista para marcarla en la sopa</p>
+        <div id="soup-container" class="soup-grid"></div>
+        <div id="soup-word-list" class="word-list"></div>
+        <button onclick="initSoup()" style="margin-top:20px; background:none; border:1px solid #ccc; padding:5px 10px; border-radius:5px; cursor:pointer;">Mezclar de nuevo</button>
+    </div>
+</div>
+
+<div id="game3" class="game-section">
+    <div class="card">
+        <h1>Ahorcado Bíblico</h1>
+        <p>Adivina el personaje secreto</p>
+        <svg id="hangman-svg" viewBox="0 0 100 100">
+            <line x1="10" y1="90" x2="90" y2="90" stroke="#000" stroke-width="3"/>
+            <line x1="30" y1="90" x2="30" y2="10" stroke="#000" stroke-width="3"/>
+            <line x1="30" y1="10" x2="70" y2="10" stroke="#000" stroke-width="3"/>
+            <line x1="70" y1="10" x2="70" y2="25" stroke="#000" stroke-width="3"/>
+            <circle class="hangman-part" id="h-0" cx="70" cy="35" r="8"/>
+            <line class="hangman-part" id="h-1" x1="70" y1="43" x2="70" y2="65"/>
+            <line class="hangman-part" id="h-2" x1="70" y1="48" x2="55" y2="58"/>
+            <line class="hangman-part" id="h-3" x1="70" y1="48" x2="85" y2="58"/>
+            <line class="hangman-part" id="h-4" x1="70" y1="65" x2="55" y2="80"/>
+            <line class="hangman-part" id="h-5" x1="70" y1="65" x2="85" y2="80"/>
+        </svg>
+        <div id="hangman-word">_ _ _ _ _</div>
+        <div id="hangman-msg" style="margin:10px; font-weight:bold;"></div>
+        <div id="hangman-keyboard" class="keyboard"></div>
+        <button onclick="initHangman()" class="btn-action" style="margin-top:20px;">Reiniciar</button>
+    </div>
+</div>
+
+<script>
+    // --- CONTROL DE NAVEGACIÓN ---
+    function switchGame(n) {
+        document.querySelectorAll('.game-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('game' + n).classList.add('active');
+        document.getElementById('nav' + n).classList.add('active');
+        if(n === 1) initReorder();
+        if(n === 2) initSoup();
+        if(n === 3) initHangman();
+    }
+
+    // --- LÓGICA JUEGO 1: REORDENAR ---
+    const listReorder = ["FILISTEOS", "AGUIJADA", "BUEYES", "LIBERACION", "VALENTIA", "OBEDIENCIA", "ISRAEL", "JUEZ", "FE", "INSTRUMENTO", "SAMGAR"];
+    let idxReorder = 0;
+    let currentReorderWord = "";
+
+    function initReorder() {
+        currentReorderWord = listReorder[idxReorder].toUpperCase();
+        let scrambled = currentReorderWord.split('').sort(() => Math.random() - 0.5).join('');
+        if(scrambled === currentReorderWord) scrambled = scrambled.split('').reverse().join('');
+        document.getElementById("scrambled-word").innerText = scrambled;
+        document.getElementById("reorder-input").value = "";
+        document.getElementById("reorder-msg").innerText = "";
+    }
+
+    function checkReorder() {
+        const val = document.getElementById("reorder-input").value.toUpperCase().trim();
+        const msg = document.getElementById("reorder-msg");
+        if(val === currentReorderWord) {
+            msg.innerText = "¡Correcto! ✨"; msg.style.color = "var(--success)";
+            document.getElementById("scrambled-word").innerText = currentReorderWord;
+        } else {
+            msg.innerText = "Intenta de nuevo ❌"; msg.style.color = "var(--error)";
+        }
+    }
+
+    function revealReorder() { document.getElementById("scrambled-word").innerText = currentReorderWord; }
+    function nextReorder() { idxReorder = (idxReorder + 1) % listReorder.length; initReorder(); }
+
+    // --- LÓGICA JUEGO 2: SOPA DE LETRAS ---
+    const soupWords = ["DAMASCO", "VISION", "CALLE", "RECTA", "JUDAS", "MANOS", "ORACION", "CEGUERA", "ESCAMAS", "INSTRUMENTO"];
+    let placedInSoup = [];
+
+    function initSoup() {
+        const gridContainer = document.getElementById("soup-container");
+        const listContainer = document.getElementById("soup-word-list");
+        gridContainer.innerHTML = ""; listContainer.innerHTML = "";
+        let grid = Array(12).fill().map(() => Array(12).fill(''));
+        placedInSoup = [];
+
+        soupWords.forEach(w => {
+            let placed = false;
+            while(!placed) {
+                let isHoriz = Math.random() > 0.5;
+                let r = Math.floor(Math.random() * (isHoriz ? 12 : 12 - w.length));
+                let c = Math.floor(Math.random() * (isHoriz ? 12 - w.length : 12));
+                let can = true;
+                for(let i=0; i<w.length; i++) {
+                    let char = grid[r + (isHoriz?0:i)][c + (isHoriz?i:0)];
+                    if(char !== '' && char !== w[i]) { can = false; break; }
+                }
+                if(can) {
+                    let coords = [];
+                    for(let i=0; i<w.length; i++) {
+                        let currR = r + (isHoriz?0:i), currC = c + (isHoriz?i:0);
+                        grid[currR][currC] = w[i].toUpperCase();
+                        coords.push({r: currR, c: currC});
+                    }
+                    placedInSoup.push({word: w.toUpperCase(), coords: coords});
+                    placed = true;
+                }
+            }
+            // Lista visual
+            let item = document.createElement("div");
+            item.className = "word-item";
+            item.id = "li-" + w.toUpperCase();
+            item.innerHTML = `<span>${w}</span><span class="check-mark">✅</span>`;
+            item.onclick = () => highlightInSoup(w.toUpperCase());
+            listContainer.appendChild(item);
+        });
+
+        for(let r=0; r<12; r++) {
+            for(let c=0; c<12; c++) {
+                let letter = grid[r][c] || String.fromCharCode(65 + Math.floor(Math.random()*26));
+                let div = document.createElement("div");
+                div.className = "cell"; div.id = `c-${r}-${c}`; div.innerText = letter;
+                gridContainer.appendChild(div);
+            }
+        }
+    }
+
+    function highlightInSoup(word) {
+        const data = placedInSoup.find(p => p.word === word);
+        const li = document.getElementById("li-" + word);
+        if(data && !li.classList.contains('completed')) {
+            data.coords.forEach(co => document.getElementById(`c-${co.r}-${co.c}`).classList.add('found'));
+            li.classList.add('completed');
+        }
+    }
+
+    // --- LÓGICA JUEGO 3: AHORCADO ---
+    const hangmanSecret = "ABEDMELEC";
+    let hangGuessed = [], hangMistakes = 0;
+
+    function initHangman() {
+        hangGuessed = []; hangMistakes = 0;
+        document.getElementById("hangman-msg").innerText = "";
+        document.querySelectorAll(".hangman-part").forEach(p => p.style.display = "none");
+        document.getElementById("hangman-word").innerText = hangmanSecret.split('').map(() => "_").join(" ");
+        const kb = document.getElementById("hangman-keyboard");
+        kb.innerHTML = "";
+        "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('').forEach(l => {
+            let b = document.createElement("button");
+            b.innerText = l; b.className = "key";
+            b.onclick = () => {
+                b.disabled = true;
+                if(hangmanSecret.includes(l)) {
+                    hangGuessed.push(l); b.classList.add("hit");
+                    let win = true;
+                    let disp = hangmanSecret.split('').map(char => {
+                        if(hangGuessed.includes(char)) return char;
+                        win = false; return "_";
+                    }).join(" ");
+                    document.getElementById("hangman-word").innerText = disp;
+                    if(win) {
+                        document.getElementById("hangman-msg").innerText = "¡Ganaste! Abed-melec salvó a Jeremías. 🏆";
+                        document.getElementById("hangman-msg").style.color = "var(--success)";
+                        document.querySelectorAll(".key").forEach(k => k.disabled = true);
+                    }
+                } else {
+                    b.classList.add("miss");
+                    if(hangMistakes < 6) document.getElementById("h-" + hangMistakes).style.display = "block";
+                    hangMistakes++;
+                    if(hangMistakes >= 6) {
+                        document.getElementById("hangman-msg").innerText = "Perdiste. Era: " + hangmanSecret;
+                        document.getElementById("hangman-msg").style.color = "var(--error)";
+                        document.querySelectorAll(".key").forEach(k => k.disabled = true);
+                    }
+                }
+            };
+            kb.appendChild(b);
+        });
+    }
+
+    // Inicio por defecto
+    window.onload = () => { initReorder(); };
+</script>
+
+</body>
+</html>
